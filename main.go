@@ -102,7 +102,9 @@ func handleTables(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		}
 		for _, result := range parsed {
-			fmt.Fprintf(w, "%s\n", result)
+			if _, err := fmt.Fprintf(w, "%s\n", result); err != nil {
+				http.Error(w, "Unable to write response", http.StatusInternalServerError)
+			}
 		}
 	}
 }

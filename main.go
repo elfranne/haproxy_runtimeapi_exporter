@@ -94,12 +94,15 @@ func handleTables(w http.ResponseWriter, r *http.Request) {
 	tables := parseTables(data)
 	for _, table := range tables {
 		data, err := runCMD(command + " " + table)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusServiceUnavailable)
+		}
 		parsed, err := parseTable(data, table)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		}
 		for _, result := range parsed {
-			fmt.Fprint(w, result+"\n")
+			fmt.Fprintf(w, "%s\n", result)
 		}
 	}
 }

@@ -4,8 +4,7 @@ builds:
     env:
       - CGO_ENABLED=0
     main: .
-    ldflags: "-s -w -X github.com/elfranne/geoip-lookup-service/version.version={{.Version}} -X github.com/elfranne/geoip-lookup-service/version.commit={{.Commit}} -X github.com/elfranne/geoip-lookup-service/version.date={{.Date}}"
-    # Set the binary output location to bin/ so archive will comply with Sensu Go Asset structure
+    ldflags: "-s -w -X github.com/elfranne/haproxy_runtimeapi_exporter/version.version={{.Version}} -X github.com/elfranne/haproxy_runtimeapi_exporter/version.commit={{.Commit}} -X github.com/elfranne/haproxy_runtimeapi_exporter/version.date={{.Date}}"
     goos:
       - linux
     goarch:

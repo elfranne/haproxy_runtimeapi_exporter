@@ -6,22 +6,31 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
 )
 
 var (
-	socket = flag.String("socket", "/var/run/haproxy.sock", "Haproxy socket to send commands to, default: /var/run/haproxy.sock")
+	socket  = flag.String("socket", "/var/run/haproxy.sock", "Haproxy socket to send commands to, default: /var/run/haproxy.sock")
 	address = flag.String("address", "127.0.0.1:10001", "Address to listen to, default: 127.0.0.1:10001")
 )
 
 func main() {
 	flag.Parse()
-	http.HandleFunc("/tables", handleTables)
 
+	// ensure the socket works
+	command := "help"
+	_, err := runCMD(command)
+	if err != nil {
+		fmt.Printf("Failed to access Haproxy socket: %v\n", err)
+		os.Exit(2)
+	}
+
+	http.HandleFunc("/tables", handleTables)
 	if err := http.ListenAndServe(*address, nil); err != nil {
-		panic(err)
+		fmt.Printf("Failed to start server: %v\n", err)
 	}
 }
 
@@ -39,16 +48,16 @@ func parseTable(data []byte, table string) ([]string, error) {
 	var output []string
 	lines := strings.SplitSeq(string(data), "\n")
 	for line := range lines {
-		if strings.HasPrefix(line, "#") || strings.TrimSpace(line) == "" == true {
+		if strings.HasPrefix(line, "#") || strings.TrimSpace(line) == "" {
 			continue
 		}
 		re := regexp.MustCompile(`key=([A-Za-z0-9_.]+).*http_req_rate\(\d+\)=(\d+)`)
 		matching := re.FindStringSubmatch(line)
 		if matching == nil {
-			return nil, fmt.Errorf("failed to parse\n")
+			return nil, fmt.Errorf("failed to parse")
 		}
 		if len(matching) != 3 {
-			return nil, fmt.Errorf("failed to match\n")
+			return nil, fmt.Errorf("failed to match")
 		}
 		rate, _ := strconv.ParseInt(matching[2], 10, 64)
 		output = append(output, fmt.Sprintf("http_req_rate{table=\"%s\",key=\"%s\"} %d", table, matching[1], rate))
@@ -56,31 +65,38 @@ func parseTable(data []byte, table string) ([]string, error) {
 	return output, nil
 }
 
-func runCMD(command string) (result []byte) {
+func runCMD(command string) ([]byte, error) {
 	conn, err := net.Dial("unix", *socket)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	if _, err := conn.Write([]byte(command + "\n")); err != nil {
-		panic(err)
+		return nil, err
 	}
 	data, err := io.ReadAll(conn)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	defer conn.Close()
-	return data
+
+	defer func() {
+		_ = conn.Close()
+	}()
+
+	return data, nil
 }
 
 func handleTables(w http.ResponseWriter, r *http.Request) {
 	command := "show table"
-	data := runCMD(command)
+	data, err := runCMD(command)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusServiceUnavailable)
+	}
 	tables := parseTables(data)
 	for _, table := range tables {
-		data := runCMD(command + " " + table)
+		data, err := runCMD(command + " " + table)
 		parsed, err := parseTable(data, table)
 		if err != nil {
-			fmt.Printf("%s", err)
+			http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		}
 		for _, result := range parsed {
 			fmt.Fprint(w, result+"\n")

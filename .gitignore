@@ -23,10 +23,12 @@ profile.cov
 # Go workspace file
 go.work
 go.work.sum
+haproxy_runtimeapi_exporter
 
 # env file
 .env
 
 # Editor/IDE
-# .idea/
-# .vscode/
+.idea/
+.vscode/
+

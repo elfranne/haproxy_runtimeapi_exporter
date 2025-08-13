@@ -62,6 +62,9 @@ func parseTable(data []byte, table string) ([]string, error) {
 		rate, _ := strconv.ParseInt(matching[2], 10, 64)
 		output = append(output, fmt.Sprintf("http_req_rate{table=\"%s\",key=\"%s\"} %d", table, matching[1], rate))
 	}
+	if len(output) == 0 {
+		output = append(output, fmt.Sprintf("http_req_rate{table=\"%s\"} 0", table))
+	}
 	return output, nil
 }
 

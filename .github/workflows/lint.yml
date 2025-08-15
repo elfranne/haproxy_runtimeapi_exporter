@@ -5,6 +5,8 @@ on: [push]
 jobs:
   test:
     name: Lint
+    permissions:
+      contents: read
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:

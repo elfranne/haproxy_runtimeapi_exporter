@@ -15,6 +15,8 @@ import (
 var (
 	socket  = flag.String("socket", "/var/run/haproxy.sock", "Haproxy socket to send commands to, default: /var/run/haproxy.sock")
 	address = flag.String("address", "127.0.0.1:10001", "Address to listen to, default: 127.0.0.1:10001")
+	group   = flag.String("group", "", "Group table entries below --value, default: ''")
+	value   = flag.Int64("value", 0, "Group value, use with --group , default: 0")
 )
 
 func main() {
@@ -46,6 +48,7 @@ func parseTables(data []byte) []string {
 
 func parseTable(data []byte, table string) ([]string, error) {
 	var output []string
+	var others int64
 	lines := strings.SplitSeq(string(data), "\n")
 	for line := range lines {
 		if strings.HasPrefix(line, "#") || strings.TrimSpace(line) == "" {
@@ -60,7 +63,14 @@ func parseTable(data []byte, table string) ([]string, error) {
 			return nil, fmt.Errorf("failed to match")
 		}
 		rate, _ := strconv.ParseInt(matching[2], 10, 64)
-		output = append(output, fmt.Sprintf("http_req_rate{table=\"%s\",key=\"%s\"} %d", table, matching[1], rate))
+		if table == *group && rate < *value {
+			others += rate
+		} else {
+			output = append(output, fmt.Sprintf("http_req_rate{table=\"%s\",key=\"%s\"} %d", table, matching[1], rate))
+		}
+	}
+	if others > 0 {
+		output = append(output, fmt.Sprintf("http_req_rate{table=\"%s\",key=\"others\"} %d", table, others))
 	}
 	if len(output) == 0 {
 		output = append(output, fmt.Sprintf("http_req_rate{table=\"%s\"} 0", table))

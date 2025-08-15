@@ -63,7 +63,6 @@ func parseTable(data []byte, table string) ([]string, error) {
 			return nil, fmt.Errorf("failed to match")
 		}
 		rate, _ := strconv.ParseInt(matching[2], 10, 64)
-
 		if table == *group && rate < *value {
 			others += rate
 		} else {
